@@ -20,6 +20,21 @@ async function main() {
     });
 
     console.log('✅ Admin creado correctamente');
+
+    const passwordHashEstudiante = await bcrypt.hash('estudiante123', 10);
+
+    await prisma.usuario.upsert({
+        where: { email: 'estudiante@examenes.com' },
+        update: {},
+        create: {
+            nombre: 'Estudiante Prueba',
+            email: 'estudiante@examenes.com',
+            password_hash: passwordHashEstudiante,
+            rol: Rol.ESTUDIANTE,
+        },
+    });
+
+    console.log('✅ Estudiante creado correctamente');
 }
 
 main()
