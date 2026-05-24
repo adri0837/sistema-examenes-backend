@@ -1,15 +1,161 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS (Tipos de dato predefinidos para algunos campos) ───────────────────────────────────────────────
+
+enum Rol {
+  ADMIN
+  ESTUDIANTE
+}
+
+enum TipoPregunta {
+  OPCION_MULTIPLE
+  VERDADERO_FALSO
+  ABIERTA
+  RELACIONAR
+  COMPLETAR
+}
+
+enum EstadoIntento {
+  EN_PROGRESO
+  ENTREGADO
+  CALIFICADO
+}
+
+// ─── 9 TABLAS ──────────────────────────────────────────────
+
+model Usuario {
+  id            String     @id @default(uuid())
+  nombre        String     @db.VarChar(100)
+  email         String     @unique @db.VarChar(150)
+  password_hash String
+  rol           Rol
+  activo        Boolean    @default(true)
+  creado_en     DateTime   @default(now())
+
+  intentos      Intento[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id          String    @id @default(uuid())
+  nombre      String    @unique @db.VarChar(100)
+  descripcion String?
+  creado_en   DateTime  @default(now())
+
+  examenes    Examen[]
+
+  @@map("categorias")
+}
+
+model Examen {
+  id                String     @id @default(uuid())
+  categoria_id      String
+  titulo            String     @db.VarChar(200)
+  descripcion       String?
+  tiempo_limite_min Int?
+  publicado         Boolean    @default(false)
+  creado_en         DateTime   @default(now())
+
+  categoria         Categoria  @relation(fields: [categoria_id], references: [id])
+  preguntas         Pregunta[]
+  intentos          Intento[]
+
+  @@map("examenes")
+}
+
+model Pregunta {
+  id         String       @id @default(uuid())
+  examen_id  String
+  enunciado  String
+  tipo       TipoPregunta
+  puntaje    Decimal      @db.Decimal(5, 2)
+  orden      Int
+
+  examen     Examen       @relation(fields: [examen_id], references: [id])
+
+  opciones         OpcionRespuesta[]
+  pares            ParRelacion[]
+  espacios         EspacioBlanco[]
+  respuestas       RespuestaEstudiante[]
+
+  @@map("preguntas")
+}
+
+model OpcionRespuesta {
+  id          String   @id @default(uuid())
+  pregunta_id String
+  texto       String
+  es_correcta Boolean
+  orden       Int
+
+  pregunta    Pregunta @relation(fields: [pregunta_id], references: [id])
+
+  @@map("opciones_respuesta")
+}
+
+model ParRelacion {
+  id              String   @id @default(uuid())
+  pregunta_id     String
+  lado_izquierdo  String
+  lado_derecho    String
+  orden           Int
+
+  pregunta        Pregunta @relation(fields: [pregunta_id], references: [id])
+
+  @@map("pares_relacion")
+}
+
+model EspacioBlanco {
+  id                 String   @id @default(uuid())
+  pregunta_id        String
+  numero_espacio     Int
+  respuesta_correcta String
+
+  pregunta           Pregunta @relation(fields: [pregunta_id], references: [id])
+
+  @@map("espacios_blanco")
+}
+
+model Intento {
+  id                  String        @id @default(uuid())
+  estudiante_id       String
+  examen_id           String
+  estado              EstadoIntento
+  calificacion_auto   Decimal?      @db.Decimal(5, 2)
+  calificacion_manual Decimal?      @db.Decimal(5, 2)
+  calificacion_final  Decimal?      @db.Decimal(5, 2)
+  iniciado_en         DateTime      @default(now())
+  entregado_en        DateTime?
+
+  estudiante          Usuario       @relation(fields: [estudiante_id], references: [id])
+  examen              Examen        @relation(fields: [examen_id], references: [id])
+  respuestas          RespuestaEstudiante[]
+
+  @@unique([estudiante_id, examen_id])
+  @@map("intentos")
+}
+
+model RespuestaEstudiante {
+  id                   String   @id @default(uuid())
+  intento_id           String
+  pregunta_id          String
+  texto_respuesta      String?
+  opciones_seleccionadas String[]
+  pares_relacionados   Json?
+  es_correcta          Boolean?
+  puntaje_obtenido     Decimal? @db.Decimal(5, 2)
+  revisado_por_admin   Boolean  @default(false)
+
+  intento              Intento  @relation(fields: [intento_id], references: [id])
+  pregunta             Pregunta @relation(fields: [pregunta_id], references: [id])
+
+  @@map("respuestas_estudiante")
 }

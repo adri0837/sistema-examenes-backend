@@ -30,7 +30,9 @@ Nota: Esto creará la carpeta node_modules localmente con todo lo necesario para
 Crea un archivo llamado .env en la raíz del proyecto (si es que no se creó automáticamente). Abre el archivo y asegúrate de escribir tu cadena de conexión local de PostgreSQL:
 
 ```bash
-DATABASE_URL="postgresql://postgres:TU_PASSWORD_LOCAL@localhost:5432/nombre_de_tu_base_de_datos_local?schema=public"
+DATABASE_URL="postgresql://postgres:TU_PASSWORD@localhost:5432/sistema_examenes"
+JWT_SECRET="cualquier_cadena_secreta_larga"
+PORT=3000
 ```
 
 Nota: Cambia **"TU_PASSWORD_LOCAL"** por la contraseña que realmente utilizas y **"nombre_de_tu_base_de_datos_local"** por el nombre exacto de la base de datos donde deseas trabajar. ESTE ARCHIVO TAMBIÉN ESTÁ EN EL .gitignore, POR LO QUE TUS CONTRASEÑAS LOCALES (el archivo .env) NUNCA SE SUBIRÁN A GITHUB NI AFECTARÁN A LOS DEMÁS.
@@ -41,6 +43,8 @@ Para asegurarte de tener las mismas tablas que el resto del equipo en tu Postgre
 ```bash
 npx prisma migrate dev --name init
 ```
+
+Nota: Se creará una carpeta **prisma/migrations**, esta tambien se estará subiendo al control de versiónes, cuando hagas push al proyecto en github. Al utilizar el comando tambien se creará una tabla **_prisma_migrations** en Postgres, se puede visualizar en tu manejador de base de datos PGADMIN.
 
 ### 5. Arrancar el servidor de desarrollo
 Para encender la API localmente y que procese las peticiones en tiempo real, ejecuta:
