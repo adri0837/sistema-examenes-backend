@@ -27,3 +27,26 @@ export const loginService = async (email: string, password: string) => {
         },
     };
 };
+
+export const registroService = async (nombre: string, email: string, password: string) => {
+    const existente = await prisma.usuario.findUnique({ where: { email } });
+    if (existente) throw new Error('El email ya está registrado');
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const usuario = await prisma.usuario.create({
+        data: {
+            nombre,
+            email,
+            password_hash,
+            rol: 'ESTUDIANTE',
+        },
+    });
+
+    return {
+        id: usuario.id,
+        nombre: usuario.nombre,
+        email: usuario.email,
+        rol: usuario.rol,
+    };
+};
