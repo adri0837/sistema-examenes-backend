@@ -101,5 +101,10 @@ export const eliminarPreguntaService = async (id: string) => {
     if (!pregunta) throw new Error('Pregunta no encontrada');
     await verificarExamenEditable(pregunta.examen_id);
 
+    // Eliminar registros relacionados primero
+    await prisma.opcionRespuesta.deleteMany({ where: { pregunta_id: id } });
+    await prisma.parRelacion.deleteMany({ where: { pregunta_id: id } });
+    await prisma.espacioBlanco.deleteMany({ where: { pregunta_id: id } });
+
     return prisma.pregunta.delete({ where: { id } });
 };

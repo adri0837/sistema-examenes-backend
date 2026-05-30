@@ -49,11 +49,25 @@ export const editarExamenService = async (
 export const eliminarExamenService = async (id: string) => {
     const examen = await prisma.examen.findUnique({
         where: { id },
-        include: { _count: { select: { intentos: true } } },
+        include: {
+            _count: { select: { intentos: true } },
+            preguntas: { select: { id: true } },
+        },
     });
     if (!examen) throw new Error('Examen no encontrado');
     if (examen._count.intentos > 0) throw new Error('No se puede eliminar un examen que ya tiene intentos');
 
+    const preguntaIds = examen.preguntas.map(p => p.id);
+
+    // Eliminar datos relacionados a las preguntas
+    await prisma.opcionRespuesta.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+    await prisma.parRelacion.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+    await prisma.espacioBlanco.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+
+    // Eliminar preguntas
+    await prisma.pregunta.deleteMany({ where: { examen_id: id } });
+
+    // Eliminar examen
     return prisma.examen.delete({ where: { id } });
 };
 

@@ -5,11 +5,9 @@ import { soloAdmin } from '../../middlewares/role.middleware';
 
 const router = Router();
 
-router.use(verificarToken, soloAdmin);
-
-router.get('/examenes/:examen_id/preguntas', listarPreguntas);
-router.post('/examenes/:examen_id/preguntas', crearPregunta);
-router.put('/preguntas/:id', editarPregunta);
-router.delete('/preguntas/:id', eliminarPregunta);
+router.get('/examenes/:examen_id/preguntas', verificarToken, soloAdmin, listarPreguntas);
+router.post('/examenes/:examen_id/preguntas', verificarToken, soloAdmin, crearPregunta);
+router.put('/preguntas/:id', verificarToken, soloAdmin, editarPregunta);
+router.delete('/preguntas/:id', verificarToken, soloAdmin, eliminarPregunta);
 
 export default router;

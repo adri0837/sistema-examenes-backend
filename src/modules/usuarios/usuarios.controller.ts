@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
-import { listarEstudiantesService, crearEstudianteService, toggleActivoService } from './usuarios.service';
+import { listarEstudiantesService, crearEstudianteService, toggleActivoService, eliminarEstudianteService } from './usuarios.service';
 
 export const listarEstudiantes = async (req: AuthRequest, res: Response) => {
     try {
@@ -30,6 +30,16 @@ export const toggleActivo = async (req: AuthRequest, res: Response) => {
         const { id } = req.params as { id: string };
         const usuario = await toggleActivoService(id);
         res.status(200).json(usuario);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const eliminarEstudiante = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params as { id: string };
+        await eliminarEstudianteService(id);
+        res.status(200).json({ message: 'Estudiante eliminado correctamente' });
     } catch (error: any) {
         res.status(400).json({ message: error.message });
     }

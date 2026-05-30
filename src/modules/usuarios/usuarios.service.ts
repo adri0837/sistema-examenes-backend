@@ -38,3 +38,12 @@ export const toggleActivoService = async (id: string) => {
         select: { id: true, nombre: true, email: true, activo: true },
     });
 };
+
+export const eliminarEstudianteService = async (id: string) => {
+    const usuario = await prisma.usuario.findUnique({ where: { id } });
+    if (!usuario) throw new Error('Usuario no encontrado');
+    if (usuario.rol === 'ADMIN') throw new Error('No se puede eliminar al administrador');
+    if (usuario.activo) throw new Error('Solo se puede eliminar un usuario desactivado');
+
+    return prisma.usuario.delete({ where: { id } });
+};
