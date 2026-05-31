@@ -1,5 +1,10 @@
 import prisma from '../../config/prisma';
 
+const PUNTAJE_MAXIMO = 100;
+
+const limitarCalificacion = (puntaje: number) =>
+    Math.min(Math.max(0, puntaje), PUNTAJE_MAXIMO);
+
 export const listarExamenesDisponiblesService = async (estudiante_id: string) => {
     const examenes = await prisma.examen.findMany({
         where: { publicado: true },
@@ -12,7 +17,7 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
 
     const intentos = await prisma.intento.findMany({
         where: { estudiante_id },
-        select: { examen_id: true, estado: true, calificacion_final: true },
+        select: { id: true, examen_id: true, estado: true, calificacion_final: true },
     });
 
     const intentosMap = new Map(intentos.map(i => [i.examen_id, i]));
@@ -132,7 +137,7 @@ export const entregarExamenService = async (
     await prisma.respuestaEstudiante.createMany({ data: respuestasData });
 
     const nuevoEstado = tiene_abiertas ? 'ENTREGADO' : 'CALIFICADO';
-    const calificacion_final = tiene_abiertas ? null : calificacion_auto;
+    const calificacion_final = tiene_abiertas ? null : limitarCalificacion(calificacion_auto);
 
     const intentoActualizado = await prisma.intento.update({
         where: { id: intento_id },
@@ -193,6 +198,7 @@ export const calificarRespuestaAbiertaService = async (respuesta_id: string, pun
     });
     if (!respuesta) throw new Error('Respuesta no encontrada');
     if (respuesta.pregunta.tipo !== 'ABIERTA') throw new Error('Esta respuesta no es de tipo abierta');
+    if (puntaje_obtenido < 0) throw new Error('El puntaje no puede ser negativo');
     if (puntaje_obtenido > Number(respuesta.pregunta.puntaje)) throw new Error(`El puntaje máximo es ${respuesta.pregunta.puntaje}`);
 
     await prisma.respuestaEstudiante.update({
@@ -211,16 +217,18 @@ export const calificarRespuestaAbiertaService = async (respuesta_id: string, pun
     });
 
     if (pendientes === 0) {
-        // Calcular calificación final sumando todo
-        const todasLasRespuestas = await prisma.respuestaEstudiante.findMany({
-            where: { intento_id },
-        });
-        const calificacion_manual = todasLasRespuestas
-            .filter(r => r.puntaje_obtenido !== null)
-            .reduce((sum, r) => sum + Number(r.puntaje_obtenido), 0);
-
         const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
-        const calificacion_final = Number(intento?.calificacion_auto || 0) + calificacion_manual;
+
+        const respuestasAbiertas = await prisma.respuestaEstudiante.findMany({
+            where: { intento_id, pregunta: { tipo: 'ABIERTA' } },
+        });
+        const calificacion_manual = respuestasAbiertas.reduce(
+            (sum, r) => sum + Number(r.puntaje_obtenido || 0),
+            0
+        );
+        const calificacion_final = limitarCalificacion(
+            Number(intento?.calificacion_auto || 0) + calificacion_manual
+        );
 
         await prisma.intento.update({
             where: { id: intento_id },
