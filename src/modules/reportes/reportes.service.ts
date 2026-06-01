@@ -10,7 +10,7 @@ export const reportePorExamenService = async (examen_id: string) => {
     const intentos = await prisma.intento.findMany({
         where: { examen_id, estado: { in: ['ENTREGADO', 'CALIFICADO'] } },
         include: {
-            estudiante: { select: { nombre: true, email: true } },
+            estudiante: { select: { id: true, nombre: true, email: true } },
         },
         orderBy: { entregado_en: 'desc' },
     });
@@ -30,6 +30,7 @@ export const reportePorEstudianteService = async (estudiante_id: string) => {
         include: {
             examen: {
                 select: {
+                    id: true,
                     titulo: true,
                     descripcion: true,
                     categoria: { select: { nombre: true } },
