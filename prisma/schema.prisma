@@ -139,7 +139,6 @@ model Intento {
   examen              Examen        @relation(fields: [examen_id], references: [id])
   respuestas          RespuestaEstudiante[]
 
-  @@unique([estudiante_id, examen_id])
   @@map("intentos")
 }
 

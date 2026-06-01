@@ -94,3 +94,15 @@ export const obtenerIntento = async (req: AuthRequest, res: Response) => {
         res.status(400).json({ message: error.message });
     }
 };
+
+import { darSegundaOportunidadService } from './intentos.service';
+
+export const darSegundaOportunidad = async (req: AuthRequest, res: Response) => {
+    try {
+        const { estudiante_id, examen_id } = req.params as { estudiante_id: string; examen_id: string };
+        const resultado = await darSegundaOportunidadService(estudiante_id, examen_id);
+        res.status(200).json(resultado);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
