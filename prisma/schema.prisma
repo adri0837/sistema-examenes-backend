@@ -60,7 +60,6 @@ model Examen {
   categoria_id      String
   titulo            String     @db.VarChar(200)
   descripcion       String?
-  tiempo_limite_min Int?
   publicado         Boolean    @default(false)
   creado_en         DateTime   @default(now())
 
@@ -72,12 +71,13 @@ model Examen {
 }
 
 model Pregunta {
-  id         String       @id @default(uuid())
-  examen_id  String
-  enunciado  String
-  tipo       TipoPregunta
-  puntaje    Decimal      @db.Decimal(5, 2)
-  orden      Int
+  id                String       @id @default(uuid())
+  examen_id         String
+  enunciado         String
+  tipo              TipoPregunta
+  puntaje           Decimal      @db.Decimal(5, 2)
+  tiempo_limite_seg Int?
+  orden             Int
 
   examen     Examen       @relation(fields: [examen_id], references: [id])
 

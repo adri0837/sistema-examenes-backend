@@ -28,6 +28,7 @@ export const crearPreguntaService = async (
     enunciado: string,
     tipo: TipoPregunta,
     puntaje: number,
+    tiempo_limite_seg: number | undefined,
     opciones?: { texto: string; es_correcta: boolean }[],
     pares?: { lado_izquierdo: string; lado_derecho: string }[],
     espacios?: { respuesta_correcta: string }[]
@@ -42,6 +43,7 @@ export const crearPreguntaService = async (
             enunciado,
             tipo,
             puntaje,
+            tiempo_limite_seg: tiempo_limite_seg || null,
             orden: totalPreguntas + 1,
             opciones: (tipo === 'OPCION_MULTIPLE' || tipo === 'VERDADERO_FALSO') && opciones
                 ? { create: opciones.map((o, i) => ({ texto: o.texto, es_correcta: o.es_correcta, orden: i + 1 })) }
@@ -65,6 +67,7 @@ export const editarPreguntaService = async (
     id: string,
     enunciado: string,
     puntaje: number,
+    tiempo_limite_seg: number | undefined,
     opciones?: { texto: string; es_correcta: boolean }[],
     pares?: { lado_izquierdo: string; lado_derecho: string }[],
     espacios?: { respuesta_correcta: string }[]
@@ -79,6 +82,7 @@ export const editarPreguntaService = async (
         data: {
             enunciado,
             puntaje,
+            tiempo_limite_seg: tiempo_limite_seg || null,
             opciones: opciones ? {
                 deleteMany: {},
                 create: opciones.map((o, i) => ({ texto: o.texto, es_correcta: o.es_correcta, orden: i + 1 })),

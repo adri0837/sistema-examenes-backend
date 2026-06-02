@@ -13,14 +13,13 @@ export const listarExamenesService = async () => {
 export const crearExamenService = async (
     titulo: string,
     descripcion: string | undefined,
-    categoria_id: string,
-    tiempo_limite_min: number | undefined
+    categoria_id: string
 ) => {
     const categoria = await prisma.categoria.findUnique({ where: { id: categoria_id } });
     if (!categoria) throw new Error('Categoría no encontrada');
 
     return prisma.examen.create({
-        data: { titulo, descripcion, categoria_id, tiempo_limite_min },
+        data: { titulo, descripcion, categoria_id },
         include: { categoria: { select: { id: true, nombre: true } } },
     });
 };
@@ -29,8 +28,7 @@ export const editarExamenService = async (
     id: string,
     titulo: string,
     descripcion: string | undefined,
-    categoria_id: string,
-    tiempo_limite_min: number | undefined
+    categoria_id: string
 ) => {
     const examen = await prisma.examen.findUnique({
         where: { id },
@@ -41,7 +39,7 @@ export const editarExamenService = async (
 
     return prisma.examen.update({
         where: { id },
-        data: { titulo, descripcion, categoria_id, tiempo_limite_min },
+        data: { titulo, descripcion, categoria_id },
         include: { categoria: { select: { id: true, nombre: true } } },
     });
 };

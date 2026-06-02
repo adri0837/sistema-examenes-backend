@@ -16,7 +16,7 @@ export const listarPreguntas = async (req: AuthRequest, res: Response) => {
 export const crearPregunta = async (req: AuthRequest, res: Response) => {
     try {
         const { examen_id } = req.params as { examen_id: string };
-        const { enunciado, tipo, puntaje, opciones, pares, espacios } = req.body;
+        const { enunciado, tipo, puntaje, tiempo_limite_seg, opciones, pares, espacios } = req.body;
 
         if (!enunciado || !tipo || puntaje === undefined) {
             res.status(400).json({ message: 'Enunciado, tipo y puntaje son requeridos' });
@@ -29,7 +29,7 @@ export const crearPregunta = async (req: AuthRequest, res: Response) => {
             return;
         }
 
-        const pregunta = await crearPreguntaService(examen_id, enunciado, tipo, puntaje, opciones, pares, espacios);
+        const pregunta = await crearPreguntaService(examen_id, enunciado, tipo, puntaje, tiempo_limite_seg, opciones, pares, espacios);
         res.status(201).json(pregunta);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -39,14 +39,14 @@ export const crearPregunta = async (req: AuthRequest, res: Response) => {
 export const editarPregunta = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params as { id: string };
-        const { enunciado, puntaje, opciones, pares, espacios } = req.body;
+        const { enunciado, puntaje, tiempo_limite_seg, opciones, pares, espacios } = req.body;
 
         if (!enunciado || puntaje === undefined) {
             res.status(400).json({ message: 'Enunciado y puntaje son requeridos' });
             return;
         }
 
-        const pregunta = await editarPreguntaService(id, enunciado, puntaje, opciones, pares, espacios);
+        const pregunta = await editarPreguntaService(id, enunciado, puntaje, tiempo_limite_seg, opciones, pares, espacios);
         res.status(200).json(pregunta);
     } catch (error: any) {
         res.status(400).json({ message: error.message });

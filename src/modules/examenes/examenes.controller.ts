@@ -19,12 +19,12 @@ export const listarExamenes = async (req: AuthRequest, res: Response) => {
 
 export const crearExamen = async (req: AuthRequest, res: Response) => {
     try {
-        const { titulo, descripcion, categoria_id, tiempo_limite_min } = req.body;
+        const { titulo, descripcion, categoria_id } = req.body;
         if (!titulo || !categoria_id) {
             res.status(400).json({ message: 'Título y categoría son requeridos' });
             return;
         }
-        const examen = await crearExamenService(titulo, descripcion, categoria_id, tiempo_limite_min);
+        const examen = await crearExamenService(titulo, descripcion, categoria_id);
         res.status(201).json(examen);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -34,12 +34,12 @@ export const crearExamen = async (req: AuthRequest, res: Response) => {
 export const editarExamen = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params as { id: string };
-        const { titulo, descripcion, categoria_id, tiempo_limite_min } = req.body;
+        const { titulo, descripcion, categoria_id } = req.body;
         if (!titulo || !categoria_id) {
             res.status(400).json({ message: 'Título y categoría son requeridos' });
             return;
         }
-        const examen = await editarExamenService(id, titulo, descripcion, categoria_id, tiempo_limite_min);
+        const examen = await editarExamenService(id, titulo, descripcion, categoria_id);
         res.status(200).json(examen);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
