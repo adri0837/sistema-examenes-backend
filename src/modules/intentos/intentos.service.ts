@@ -173,7 +173,7 @@ export const listarCalificacionesEstudianteService = async (estudiante_id: strin
     return prisma.intento.findMany({
         where: {
             estudiante_id,
-            estado: { in: ['ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
         },
         include: {
             examen: {
@@ -265,7 +265,7 @@ export const obtenerIntentoService = async (intento_id: string, estudiante_id: s
         where: { id: intento_id },
         include: { examen: true },
     });
-    if (!intento) throw new Error('Intento no encontrado');
+    if (!intento) throw new Error('No existe un intento para este estudiante en este examen');
     if (intento.estudiante_id !== estudiante_id) throw new Error('No autorizado');
     if (intento.estado !== 'EN_PROGRESO') throw new Error('Este examen ya fue entregado');
 
@@ -289,7 +289,7 @@ export const darSegundaOportunidadService = async (estudiante_id: string, examen
         where: {
             estudiante_id,
             examen_id,
-            estado: { in: ['ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
         },
         orderBy: { iniciado_en: 'desc' },
     });
