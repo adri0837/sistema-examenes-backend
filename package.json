@@ -1,6 +1,6 @@
 {
   "name": "sistema-examenes-backend",
-  "version": "1.0.0",
+  "version": "3.0.0",
   "main": "index.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { listarExamenes, crearExamen, editarExamen, eliminarExamen, togglePublicado } from './examenes.controller';
+import { listarExamenes, crearExamen, editarExamen, eliminarExamen, togglePublicado, resetearIntentos } from './examenes.controller';
 import { verificarToken } from '../../middlewares/auth.middleware';
 import { soloAdmin } from '../../middlewares/role.middleware';
 
@@ -12,5 +12,6 @@ router.post('/', crearExamen);
 router.put('/:id', editarExamen);
 router.delete('/:id', eliminarExamen);
 router.patch('/:id/toggle-publicado', togglePublicado);
+router.delete('/:id/intentos', resetearIntentos);
 
 export default router;

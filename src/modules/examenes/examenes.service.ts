@@ -13,13 +13,14 @@ export const listarExamenesService = async () => {
 export const crearExamenService = async (
     titulo: string,
     descripcion: string | undefined,
-    categoria_id: string
+    categoria_id: string,
+    supervision_activa?: boolean
 ) => {
     const categoria = await prisma.categoria.findUnique({ where: { id: categoria_id } });
     if (!categoria) throw new Error('Categoría no encontrada');
 
     return prisma.examen.create({
-        data: { titulo, descripcion, categoria_id },
+        data: { titulo, descripcion, categoria_id, supervision_activa: supervision_activa ?? false },
         include: { categoria: { select: { id: true, nombre: true } } },
     });
 };
@@ -28,18 +29,18 @@ export const editarExamenService = async (
     id: string,
     titulo: string,
     descripcion: string | undefined,
-    categoria_id: string
+    categoria_id: string,
+    supervision_activa?: boolean
 ) => {
-    const examen = await prisma.examen.findUnique({
-        where: { id },
-        include: { _count: { select: { intentos: true } } },
-    });
+    const examen = await prisma.examen.findUnique({ where: { id } });
     if (!examen) throw new Error('Examen no encontrado');
-    if (examen._count.intentos > 0) throw new Error('No se puede editar un examen que ya tiene intentos');
+
+    const updateData: any = { titulo, descripcion, categoria_id };
+    if (supervision_activa !== undefined) updateData.supervision_activa = supervision_activa;
 
     return prisma.examen.update({
         where: { id },
-        data: { titulo, descripcion, categoria_id },
+        data: updateData,
         include: { categoria: { select: { id: true, nombre: true } } },
     });
 };
@@ -53,20 +54,48 @@ export const eliminarExamenService = async (id: string) => {
         },
     });
     if (!examen) throw new Error('Examen no encontrado');
-    if (examen._count.intentos > 0) throw new Error('No se puede eliminar un examen que ya tiene intentos');
 
-    const preguntaIds = examen.preguntas.map(p => p.id);
+    return prisma.$transaction(async (tx) => {
+        // Si hay intentos, limpiarlos primero
+        if (examen._count.intentos > 0) {
+            const intentos = await tx.intento.findMany({ where: { examen_id: id }, select: { id: true } });
+            const ids = intentos.map(i => i.id);
+            await tx.incidenteSupervision.deleteMany({ where: { intento_id: { in: ids } } });
+            await tx.respuestaEstudiante.deleteMany({ where: { intento_id: { in: ids } } });
+            await tx.intento.deleteMany({ where: { examen_id: id } });
+        }
 
-    // Eliminar datos relacionados a las preguntas
-    await prisma.opcionRespuesta.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
-    await prisma.parRelacion.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
-    await prisma.espacioBlanco.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+        const preguntaIds = examen.preguntas.map(p => p.id);
 
-    // Eliminar preguntas
-    await prisma.pregunta.deleteMany({ where: { examen_id: id } });
+        // Eliminar datos relacionados a las preguntas
+        await tx.opcionRespuesta.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+        await tx.parRelacion.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
+        await tx.espacioBlanco.deleteMany({ where: { pregunta_id: { in: preguntaIds } } });
 
-    // Eliminar examen
-    return prisma.examen.delete({ where: { id } });
+        // Eliminar preguntas
+        await tx.pregunta.deleteMany({ where: { examen_id: id } });
+
+        // Eliminar examen
+        return tx.examen.delete({ where: { id } });
+    });
+};
+
+export const resetearIntentosExamenService = async (id: string) => {
+    const examen = await prisma.examen.findUnique({
+        where: { id },
+        include: { _count: { select: { intentos: true } } },
+    });
+    if (!examen) throw new Error('Examen no encontrado');
+    if (examen._count.intentos === 0) throw new Error('El examen no tiene intentos');
+
+    return prisma.$transaction(async (tx) => {
+        const intentos = await tx.intento.findMany({ where: { examen_id: id }, select: { id: true } });
+        const ids = intentos.map(i => i.id);
+        await tx.incidenteSupervision.deleteMany({ where: { intento_id: { in: ids } } });
+        await tx.respuestaEstudiante.deleteMany({ where: { intento_id: { in: ids } } });
+        await tx.intento.deleteMany({ where: { examen_id: id } });
+        return { message: `Se eliminaron ${intentos.length} intento(s)` };
+    });
 };
 
 export const togglePublicadoService = async (id: string) => {

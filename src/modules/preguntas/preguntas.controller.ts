@@ -2,12 +2,17 @@ import { Response } from 'express';
 import { AuthRequest } from '../../middlewares/auth.middleware';
 import { listarPreguntasService, crearPreguntaService, editarPreguntaService, eliminarPreguntaService } from './preguntas.service';
 import { TipoPregunta } from '@prisma/client';
+import prisma from '../../config/prisma';
 
 export const listarPreguntas = async (req: AuthRequest, res: Response) => {
     try {
         const { examen_id } = req.params as { examen_id: string };
         const preguntas = await listarPreguntasService(examen_id);
-        res.status(200).json(preguntas);
+        const examen = await prisma.examen.findUnique({
+            where: { id: examen_id },
+            select: { _count: { select: { intentos: true } } },
+        });
+        res.status(200).json({ preguntas, intentos: examen?._count.intentos ?? 0 });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }

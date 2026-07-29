@@ -8,7 +8,7 @@ export const reportePorExamenService = async (examen_id: string) => {
     if (!examen) throw new Error('Examen no encontrado');
 
     const intentos = await prisma.intento.findMany({
-        where: { examen_id, estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] } },
+        where: { examen_id, estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] } },
         include: {
             estudiante: { select: { id: true, nombre: true, email: true } },
         },
@@ -26,7 +26,7 @@ export const reportePorEstudianteService = async (estudiante_id: string) => {
     if (!estudiante) throw new Error('Estudiante no encontrado');
 
     const intentos = await prisma.intento.findMany({
-        where: { estudiante_id, estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] } },
+        where: { estudiante_id, estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] } },
         include: {
             examen: {
                 select: {

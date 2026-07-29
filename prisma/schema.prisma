@@ -26,6 +26,19 @@ enum EstadoIntento {
   EN_PROGRESO
   ENTREGADO
   CALIFICADO
+  CANCELADO
+}
+
+enum IncidenteTipo {
+  SIN_CAMARA
+  SIN_MICRO
+  SIN_PERMISOS
+  CAMBIO_VENTANA
+  CIERRE_NAVEGADOR
+  SALIR_PANTALLA_COMPLETA
+  MOVIMIENTO_SOSPECHOSO
+  RUIDO_SOSPECHOSO
+  COPIA
 }
 
 // ─── 9 TABLAS ──────────────────────────────────────────────
@@ -61,6 +74,7 @@ model Examen {
   titulo            String     @db.VarChar(200)
   descripcion       String?
   publicado         Boolean    @default(false)
+  supervision_activa Boolean   @default(false)
   creado_en         DateTime   @default(now())
 
   categoria         Categoria  @relation(fields: [categoria_id], references: [id])
@@ -138,8 +152,21 @@ model Intento {
   estudiante          Usuario       @relation(fields: [estudiante_id], references: [id])
   examen              Examen        @relation(fields: [examen_id], references: [id])
   respuestas          RespuestaEstudiante[]
+  incidentes          IncidenteSupervision[]
 
   @@map("intentos")
+}
+
+model IncidenteSupervision {
+  id          String        @id @default(uuid())
+  intento_id  String
+  tipo        IncidenteTipo
+  descripcion String?
+  creado_en   DateTime      @default(now())
+
+  intento     Intento       @relation(fields: [intento_id], references: [id])
+
+  @@map("incidentes_supervision")
 }
 
 model RespuestaEstudiante {

@@ -42,18 +42,18 @@ export const iniciarExamenService = async (estudiante_id: string, examen_id: str
     if (!examen) throw new Error('Examen no encontrado');
     if (!examen.publicado) throw new Error('El examen no está disponible');
 
-    // Verificar si hay un intento EN_PROGRESO o ya ENTREGADO/CALIFICADO sin segunda oportunidad
+    // Verificar si ya hay un intento activo o completado
     const intentoActivo = await prisma.intento.findFirst({
         where: {
             estudiante_id,
             examen_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] },
         },
         orderBy: { iniciado_en: 'desc' },
     });
 
     if (intentoActivo?.estado === 'EN_PROGRESO') throw new Error('Ya tienes un intento en progreso para este examen');
-    if (intentoActivo) throw new Error('Ya realizaste este examen');
+    if (intentoActivo) throw new Error('Ya realizaste este examen. Si fue cancelado, solicita una nueva oportunidad al administrador.');
 
     const intento = await prisma.intento.create({
         data: { estudiante_id, examen_id, estado: 'EN_PROGRESO' },
@@ -284,17 +284,20 @@ export const obtenerIntentoService = async (intento_id: string, estudiante_id: s
 
 // ── Segunda oportunidad ─────────────────────────────────────────────
 export const darSegundaOportunidadService = async (estudiante_id: string, examen_id: string) => {
-    // Buscar el intento más reciente que no esté en progreso
+    // Buscar el intento más reciente
     const intento = await prisma.intento.findFirst({
         where: {
             estudiante_id,
             examen_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] },
         },
         orderBy: { iniciado_en: 'desc' },
     });
 
-    if (!intento) throw new Error('No existe un intento completado para este estudiante en este examen');
+    if (!intento) throw new Error('No existe un intento para este estudiante en este examen');
+
+    // Eliminar incidentes de supervisión del intento anterior
+    await prisma.incidenteSupervision.deleteMany({ where: { intento_id: intento.id } });
 
     // Eliminar respuestas del intento anterior
     await prisma.respuestaEstudiante.deleteMany({ where: { intento_id: intento.id } });

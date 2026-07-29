@@ -6,6 +6,7 @@ import {
     editarExamenService,
     eliminarExamenService,
     togglePublicadoService,
+    resetearIntentosExamenService,
 } from './examenes.service';
 
 export const listarExamenes = async (req: AuthRequest, res: Response) => {
@@ -19,12 +20,12 @@ export const listarExamenes = async (req: AuthRequest, res: Response) => {
 
 export const crearExamen = async (req: AuthRequest, res: Response) => {
     try {
-        const { titulo, descripcion, categoria_id } = req.body;
+        const { titulo, descripcion, categoria_id, supervision_activa } = req.body;
         if (!titulo || !categoria_id) {
             res.status(400).json({ message: 'Título y categoría son requeridos' });
             return;
         }
-        const examen = await crearExamenService(titulo, descripcion, categoria_id);
+        const examen = await crearExamenService(titulo, descripcion, categoria_id, supervision_activa);
         res.status(201).json(examen);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -34,12 +35,12 @@ export const crearExamen = async (req: AuthRequest, res: Response) => {
 export const editarExamen = async (req: AuthRequest, res: Response) => {
     try {
         const { id } = req.params as { id: string };
-        const { titulo, descripcion, categoria_id } = req.body;
+        const { titulo, descripcion, categoria_id, supervision_activa } = req.body;
         if (!titulo || !categoria_id) {
             res.status(400).json({ message: 'Título y categoría son requeridos' });
             return;
         }
-        const examen = await editarExamenService(id, titulo, descripcion, categoria_id);
+        const examen = await editarExamenService(id, titulo, descripcion, categoria_id, supervision_activa);
         res.status(200).json(examen);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
@@ -51,6 +52,16 @@ export const eliminarExamen = async (req: AuthRequest, res: Response) => {
         const { id } = req.params as { id: string };
         await eliminarExamenService(id);
         res.status(200).json({ message: 'Examen eliminado correctamente' });
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const resetearIntentos = async (req: AuthRequest, res: Response) => {
+    try {
+        const { id } = req.params as { id: string };
+        const result = await resetearIntentosExamenService(id);
+        res.status(200).json(result);
     } catch (error: any) {
         res.status(400).json({ message: error.message });
     }
