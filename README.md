@@ -2,6 +2,32 @@
 
 Este es el repositorio del **Backend** para la plataforma de evaluación académica. Está construido utilizando **Node.js** + **Express** + **TypeScript** + **Prisma ORM**.
 
+## ✨ Funcionalidades
+
+- **Autenticación** con JWT (roles `ADMIN` y `ESTUDIANTE`).
+- **Gestión de usuarios, categorías, exámenes y preguntas**: múltiple opción, verdadero/falso, abierta, relacionar y completar.
+- **Grupos**: creación de grupos, alta de estudiantes y asignación de exámenes con ventana de rendición (`fecha_inicio` / `fecha_fin`).
+- **Flujo del estudiante**: listar exámenes disponibles según su grupo, iniciar, entregar y ver calificaciones.
+- **Corrección automática**: preguntas de opción múltiple, verdadero/falso, relacionar y completar se corrigen en el servidor. Las preguntas abiertas quedan para revisión del admin.
+- **Supervisión por cámara/micrófono**:
+  - El estudiante reporta incidentes (`SIN_CAMARA`, `SIN_MICRO`, `CAMBIO_VENTANA`, `RUIDO_SOSPECHOSO`, etc.).
+  - **2 llamadas de atención**: la primera es advertencia; la segunda cancela el examen automáticamente. Los tipos `SIN_PERMISOS` y `CIERRE_NAVEGADOR` cancelan directo.
+  - **Evidencias** (capturas de pantalla, grabaciones de audio/video) subidas con `multipart/form-data` y servidas por URL pública o por endpoint protegido.
+  - **Panel de supervisión para el admin**: intentos con incidentes y evidencias, reprobación y habilitación de reintentos.
+- **Revisión manual**: el admin califica las respuestas abiertas y puede **reprobar** o **permitir reintento** de un intento cancelado/reprobado.
+- **Reportes** por examen y por estudiante.
+
+> 📖 Documentación completa de los endpoints en [`API.md`](./API.md).
+
+##  Usuarios de prueba (seed)
+
+El seed (`npx prisma db seed`) crea dos usuarios por defecto:
+
+| Rol | Email | Contraseña |
+| --- | --- | --- |
+| ADMIN | `admin@examenes.com` | `admin123` |
+| ESTUDIANTE | `estudiante@examenes.com` | `estudiante123` |
+
 ##  Prerrequisitos
 
 Antes de comenzar, asegúrate de tener instalado lo siguiente en tu máquina:
