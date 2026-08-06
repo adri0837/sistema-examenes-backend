@@ -27,6 +27,12 @@ enum EstadoIntento {
   ENTREGADO
   CALIFICADO
   CANCELADO
+  REPROBADO
+}
+
+enum TipoEvidencia {
+  CAPTURA
+  GRABACION
 }
 
 enum IncidenteTipo {
@@ -150,11 +156,15 @@ model Intento {
   calificacion_final  Decimal?      @db.Decimal(5, 2)
   iniciado_en         DateTime      @default(now())
   entregado_en        DateTime?
+  llamadas_atencion   Int           @default(0)
+  reintento_permitido Boolean       @default(false)
+  motivo_admin        String?
 
   estudiante          Usuario       @relation(fields: [estudiante_id], references: [id])
   examen              Examen        @relation(fields: [examen_id], references: [id])
   respuestas          RespuestaEstudiante[]
   incidentes          IncidenteSupervision[]
+  evidencias          Evidencia[]
 
   @@map("intentos")
 }
@@ -167,6 +177,7 @@ model IncidenteSupervision {
   creado_en   DateTime      @default(now())
 
   intento     Intento       @relation(fields: [intento_id], references: [id])
+  evidencias  Evidencia[]
 
   @@map("incidentes_supervision")
 }
@@ -228,4 +239,22 @@ model AsignacionExamen {
 
   @@unique([grupo_id, examen_id])
   @@map("asignaciones_examen")
+}
+
+// ─── EVIDENCIAS DE SUPERVISIÓN ──────────────────────────────────────
+
+model Evidencia {
+  id           String         @id @default(uuid())
+  intento_id   String
+  incidente_id String?
+  tipo         TipoEvidencia
+  archivo      String
+  mime         String?
+  tamano       Int?
+  creado_en    DateTime       @default(now())
+
+  intento      Intento                @relation(fields: [intento_id], references: [id], onDelete: Cascade)
+  incidente    IncidenteSupervision?  @relation(fields: [incidente_id], references: [id], onDelete: SetNull)
+
+  @@map("evidencias")
 }

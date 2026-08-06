@@ -7,6 +7,10 @@ import {
     listarCalificacionesEstudianteService,
     listarPendientesRevisionService,
     calificarRespuestaAbiertaService,
+    obtenerIntentoService,
+    darSegundaOportunidadService,
+    reprobarIntentoService,
+    permitirReintentoService,
 } from './intentos.service';
 
 export const listarExamenesDisponibles = async (req: AuthRequest, res: Response) => {
@@ -82,8 +86,6 @@ export const calificarRespuestaAbierta = async (req: AuthRequest, res: Response)
     }
 };
 
-import { obtenerIntentoService } from './intentos.service';
-
 export const obtenerIntento = async (req: AuthRequest, res: Response) => {
     try {
         const estudiante_id = req.usuario!.id;
@@ -95,12 +97,32 @@ export const obtenerIntento = async (req: AuthRequest, res: Response) => {
     }
 };
 
-import { darSegundaOportunidadService } from './intentos.service';
-
 export const darSegundaOportunidad = async (req: AuthRequest, res: Response) => {
     try {
         const { estudiante_id, examen_id } = req.params as { estudiante_id: string; examen_id: string };
         const resultado = await darSegundaOportunidadService(estudiante_id, examen_id);
+        res.status(200).json(resultado);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const reprobarIntento = async (req: AuthRequest, res: Response) => {
+    try {
+        const { intento_id } = req.params as { intento_id: string };
+        const { motivo } = req.body as { motivo?: string };
+        const resultado = await reprobarIntentoService(intento_id, motivo);
+        res.status(200).json(resultado);
+    } catch (error: any) {
+        res.status(400).json({ message: error.message });
+    }
+};
+
+export const permitirReintento = async (req: AuthRequest, res: Response) => {
+    try {
+        const { intento_id } = req.params as { intento_id: string };
+        const { motivo } = req.body as { motivo?: string };
+        const resultado = await permitirReintentoService(intento_id, motivo);
         res.status(200).json(resultado);
     } catch (error: any) {
         res.status(400).json({ message: error.message });

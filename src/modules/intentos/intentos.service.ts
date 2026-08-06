@@ -87,13 +87,26 @@ export const iniciarExamenService = async (estudiante_id: string, examen_id: str
         where: {
             estudiante_id,
             examen_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO', 'REPROBADO'] },
         },
         orderBy: { iniciado_en: 'desc' },
     });
 
     if (intentoActivo?.estado === 'EN_PROGRESO') throw new Error('Ya tienes un intento en progreso para este examen');
-    if (intentoActivo) throw new Error('Ya realizaste este examen. Si fue cancelado, solicita una nueva oportunidad al administrador.');
+
+    if (intentoActivo) {
+        // Un intento cancelado o reprobado permite reintentar solo si el admin lo habilitó
+        if (
+            (intentoActivo.estado === 'CANCELADO' || intentoActivo.estado === 'REPROBADO') &&
+            intentoActivo.reintento_permitido
+        ) {
+            // Continuar con el nuevo intento
+        } else if (intentoActivo.estado === 'CANCELADO' || intentoActivo.estado === 'REPROBADO') {
+            throw new Error('Este examen fue cancelado o reprobado. Solicita una nueva oportunidad al administrador.');
+        } else {
+            throw new Error('Ya realizaste este examen.');
+        }
+    }
 
     const intento = await prisma.intento.create({
         data: { estudiante_id, examen_id, estado: 'EN_PROGRESO' },
@@ -213,7 +226,7 @@ export const listarCalificacionesEstudianteService = async (estudiante_id: strin
     return prisma.intento.findMany({
         where: {
             estudiante_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'REPROBADO'] },
         },
         include: {
             examen: {
@@ -346,4 +359,40 @@ export const darSegundaOportunidadService = async (estudiante_id: string, examen
     await prisma.intento.delete({ where: { id: intento.id } });
 
     return { message: 'Segunda oportunidad otorgada correctamente' };
+};
+
+// ── Reprobación y segunda oportunidad por revisión del admin ─────────
+export const reprobarIntentoService = async (intento_id: string, motivo?: string) => {
+    const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
+    if (!intento) throw new Error('Intento no encontrado');
+
+    // Descartar las respuestas para que no cuente como calificado
+    await prisma.respuestaEstudiante.deleteMany({ where: { intento_id } });
+
+    return prisma.intento.update({
+        where: { id: intento_id },
+        data: {
+            estado: 'REPROBADO',
+            calificacion_final: null,
+            calificacion_auto: null,
+            calificacion_manual: null,
+            motivo_admin: motivo || null,
+        },
+    });
+};
+
+export const permitirReintentoService = async (intento_id: string, motivo?: string) => {
+    const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
+    if (!intento) throw new Error('Intento no encontrado');
+    if (intento.estado !== 'REPROBADO' && intento.estado !== 'CANCELADO') {
+        throw new Error('Solo se puede dar una segunda oportunidad a un intento reprobado o cancelado');
+    }
+
+    return prisma.intento.update({
+        where: { id: intento_id },
+        data: {
+            reintento_permitido: true,
+            motivo_admin: motivo || intento.motivo_admin,
+        },
+    });
 };
