@@ -10,6 +10,8 @@ const normalizarA100 = (puntosObtenidos: number, puntosMaximos: number): number 
 const estaEnVentana = (fecha_inicio: Date | null, fecha_fin: Date | null, ahora: Date): boolean =>
     (!fecha_inicio || fecha_inicio <= ahora) && (!fecha_fin || fecha_fin >= ahora);
 
+const sinNulos = <T,>(arr: T[] | undefined | null): T[] => (arr || []).filter(v => v !== null && v !== undefined);
+
 export const listarExamenesDisponiblesService = async (estudiante_id: string) => {
     const ahora = new Date();
 
@@ -172,7 +174,7 @@ export const entregarExamenService = async (
 
         if (pregunta.tipo === 'OPCION_MULTIPLE' || pregunta.tipo === 'VERDADERO_FALSO') {
             const correctas = pregunta.opciones.filter(o => o.es_correcta).map(o => o.id).sort();
-            const seleccionadas = (r.opciones_seleccionadas || []).sort();
+            const seleccionadas = sinNulos(r.opciones_seleccionadas).sort();
             es_correcta = JSON.stringify(correctas) === JSON.stringify(seleccionadas);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -180,7 +182,7 @@ export const entregarExamenService = async (
             }
         } else if (pregunta.tipo === 'RELACIONAR') {
             const correctos = pregunta.pares.map(p => `${p.lado_izquierdo}|${p.lado_derecho}`).sort();
-            const dados = (r.pares_relacionados || []).map((p: any) => `${p.izquierdo}|${p.derecho}`).sort();
+            const dados = sinNulos(r.pares_relacionados).map((p: any) => `${p.izquierdo}|${p.derecho}`).sort();
             es_correcta = JSON.stringify(correctos) === JSON.stringify(dados);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -188,7 +190,7 @@ export const entregarExamenService = async (
             }
         } else if (pregunta.tipo === 'COMPLETAR') {
             const correctos = pregunta.espacios.map(e => e.respuesta_correcta.toLowerCase().trim());
-            const dados = (r.espacios_respuestas || []).map((e: string) => (e || '').toLowerCase().trim());
+            const dados = sinNulos(r.espacios_respuestas).map((e: string) => (e || '').toLowerCase().trim());
             es_correcta = JSON.stringify(correctos) === JSON.stringify(dados);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -203,8 +205,8 @@ export const entregarExamenService = async (
             intento_id,
             pregunta_id: r.pregunta_id,
             texto_respuesta: r.texto_respuesta || null,
-            opciones_seleccionadas: r.opciones_seleccionadas || [],
-            pares_relacionados: r.pares_relacionados || null,
+            opciones_seleccionadas: sinNulos(r.opciones_seleccionadas),
+            pares_relacionados: sinNulos(r.pares_relacionados),
             es_correcta,
             puntaje_obtenido,
             revisado_por_admin: false,
