@@ -6,6 +6,7 @@ import {
     subirEvidencia,
     listarEvidencias,
     descargarEvidencia,
+    listarIntentosSupervision,
 } from './supervision.controller';
 import { subirEvidencia as multerSubirEvidencia } from '../../config/upload';
 import { verificarToken } from '../../middlewares/auth.middleware';
@@ -22,6 +23,7 @@ router.post(
     multerSubirEvidencia.single('archivo'),
     subirEvidencia
 );
+router.get('/admin/supervision/intentos', verificarToken, soloAdmin, listarIntentosSupervision);
 router.get('/admin/intentos/:intento_id/incidentes', verificarToken, soloAdmin, listarIncidentes);
 router.get('/admin/intentos/:intento_id/evidencias', verificarToken, soloAdmin, listarEvidencias);
 router.get('/admin/evidencias/:evidencia_id/archivo', verificarToken, soloAdmin, descargarEvidencia);

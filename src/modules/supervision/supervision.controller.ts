@@ -9,6 +9,7 @@ import {
     subirEvidenciaService,
     listarEvidenciasService,
     obtenerEvidenciaService,
+    listarIntentosSupervisionService,
 } from './supervision.service';
 
 export const reportarIncidente = async (req: AuthRequest, res: Response) => {
@@ -87,6 +88,15 @@ export const listarEvidencias = async (req: AuthRequest, res: Response) => {
         res.status(200).json(
             evidencias.map(e => ({ ...e, url: `/uploads/evidencias/${e.archivo}` }))
         );
+    } catch (error: any) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+export const listarIntentosSupervision = async (req: AuthRequest, res: Response) => {
+    try {
+        const intentos = await listarIntentosSupervisionService();
+        res.status(200).json(intentos);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }

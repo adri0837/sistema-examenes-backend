@@ -134,6 +134,18 @@ export const listarEvidenciasService = async (intento_id: string) => {
     });
 };
 
+export const listarIntentosSupervisionService = async () => {
+    return prisma.intento.findMany({
+        where: { OR: [{ incidentes: { some: {} } }, { evidencias: { some: {} } }] },
+        include: {
+            estudiante: { select: { id: true, nombre: true, email: true } },
+            examen: { select: { id: true, titulo: true } },
+            _count: { select: { incidentes: true, evidencias: true } },
+        },
+        orderBy: { iniciado_en: 'desc' },
+    });
+};
+
 export const obtenerEvidenciaService = async (id: string) => {
     const evidencia = await prisma.evidencia.findUnique({ where: { id } });
     if (!evidencia) throw new Error('Evidencia no encontrada');

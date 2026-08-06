@@ -41,7 +41,15 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
     // Traer el intento más reciente por examen (puede haber más de uno si el admin dio otra oportunidad)
     const intentos = await prisma.intento.findMany({
         where: { estudiante_id },
-        select: { id: true, examen_id: true, estado: true, calificacion_final: true },
+        select: {
+            id: true,
+            examen_id: true,
+            estado: true,
+            calificacion_final: true,
+            llamadas_atencion: true,
+            reintento_permitido: true,
+            motivo_admin: true,
+        },
         orderBy: { iniciado_en: 'desc' },
     });
 
