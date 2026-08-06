@@ -53,6 +53,7 @@ model Usuario {
   creado_en     DateTime   @default(now())
 
   intentos      Intento[]
+  grupos        GrupoUsuario[]
 
   @@map("usuarios")
 }
@@ -80,6 +81,7 @@ model Examen {
   categoria         Categoria  @relation(fields: [categoria_id], references: [id])
   preguntas         Pregunta[]
   intentos          Intento[]
+  asignaciones      AsignacionExamen[]
 
   @@map("examenes")
 }
@@ -184,4 +186,46 @@ model RespuestaEstudiante {
   pregunta             Pregunta @relation(fields: [pregunta_id], references: [id])
 
   @@map("respuestas_estudiante")
+}
+
+// ─── GRUPOS Y ASIGNACIONES ──────────────────────────────────────────
+
+model Grupo {
+  id          String   @id @default(uuid())
+  nombre      String   @unique @db.VarChar(100)
+  descripcion String?
+  creado_en   DateTime @default(now())
+
+  estudiantes  GrupoUsuario[]
+  asignaciones AsignacionExamen[]
+
+  @@map("grupos")
+}
+
+model GrupoUsuario {
+  id            String   @id @default(uuid())
+  grupo_id      String
+  estudiante_id String
+  agregado_en   DateTime @default(now())
+
+  grupo      Grupo   @relation(fields: [grupo_id], references: [id], onDelete: Cascade)
+  estudiante Usuario @relation(fields: [estudiante_id], references: [id], onDelete: Cascade)
+
+  @@unique([grupo_id, estudiante_id])
+  @@map("grupos_usuarios")
+}
+
+model AsignacionExamen {
+  id           String    @id @default(uuid())
+  grupo_id     String
+  examen_id    String
+  fecha_inicio DateTime?
+  fecha_fin    DateTime?
+  asignado_en  DateTime  @default(now())
+
+  grupo  Grupo  @relation(fields: [grupo_id], references: [id], onDelete: Cascade)
+  examen Examen @relation(fields: [examen_id], references: [id], onDelete: Cascade)
+
+  @@unique([grupo_id, examen_id])
+  @@map("asignaciones_examen")
 }

@@ -1,4 +1,5 @@
 import prisma from '../../config/prisma';
+import { obtenerAsignacionesEstudianteService, obtenerAsignacionEstudianteExamenService } from '../grupos/grupos.service';
 
 // ── Helper: normalizar puntaje a escala 100 ─────────────────────────
 const normalizarA100 = (puntosObtenidos: number, puntosMaximos: number): number => {
@@ -6,7 +7,23 @@ const normalizarA100 = (puntosObtenidos: number, puntosMaximos: number): number 
     return Math.round((puntosObtenidos / puntosMaximos) * 100 * 100) / 100;
 };
 
+const estaEnVentana = (fecha_inicio: Date | null, fecha_fin: Date | null, ahora: Date): boolean =>
+    (!fecha_inicio || fecha_inicio <= ahora) && (!fecha_fin || fecha_fin >= ahora);
+
 export const listarExamenesDisponiblesService = async (estudiante_id: string) => {
+    const ahora = new Date();
+
+    const asignaciones = await obtenerAsignacionesEstudianteService(estudiante_id);
+    const asignacionesPorExamen = new Map<string, { fecha_inicio: Date | null; fecha_fin: Date | null }>();
+    for (const asignacion of asignaciones) {
+        if (!asignacionesPorExamen.has(asignacion.examen_id)) {
+            asignacionesPorExamen.set(asignacion.examen_id, {
+                fecha_inicio: asignacion.fecha_inicio,
+                fecha_fin: asignacion.fecha_fin,
+            });
+        }
+    }
+
     const examenes = await prisma.examen.findMany({
         where: { publicado: true },
         include: {
@@ -14,6 +31,11 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
             _count: { select: { preguntas: true } },
         },
         orderBy: { creado_en: 'desc' },
+    });
+
+    const examenesAsignados = examenes.filter(examen => {
+        const asignacion = asignacionesPorExamen.get(examen.id);
+        return !!asignacion && estaEnVentana(asignacion.fecha_inicio, asignacion.fecha_fin, ahora);
     });
 
     // Traer el intento más reciente por examen (puede haber más de uno si el admin dio otra oportunidad)
@@ -31,16 +53,34 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
         }
     }
 
-    return examenes.map(examen => ({
-        ...examen,
-        intento: intentosMap.get(examen.id) || null,
-    }));
+    return examenesAsignados.map(examen => {
+        const asignacion = asignacionesPorExamen.get(examen.id)!;
+        return {
+            ...examen,
+            asignacion: {
+                fecha_inicio: asignacion.fecha_inicio,
+                fecha_fin: asignacion.fecha_fin,
+            },
+            intento: intentosMap.get(examen.id) || null,
+        };
+    });
 };
 
 export const iniciarExamenService = async (estudiante_id: string, examen_id: string) => {
     const examen = await prisma.examen.findUnique({ where: { id: examen_id } });
     if (!examen) throw new Error('Examen no encontrado');
     if (!examen.publicado) throw new Error('El examen no está disponible');
+
+    const asignacion = await obtenerAsignacionEstudianteExamenService(estudiante_id, examen_id);
+    if (!asignacion) throw new Error('Este examen no te fue asignado');
+
+    const ahora = new Date();
+    if (asignacion.fecha_inicio && ahora < asignacion.fecha_inicio) {
+        throw new Error('El examen aún no está disponible para rendir');
+    }
+    if (asignacion.fecha_fin && ahora > asignacion.fecha_fin) {
+        throw new Error('El plazo para rendir este examen ya venció');
+    }
 
     // Verificar si ya hay un intento activo o completado
     const intentoActivo = await prisma.intento.findFirst({

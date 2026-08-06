@@ -5,7 +5,10 @@ export const listarExamenesService = async () => {
         orderBy: { creado_en: 'desc' },
         include: {
             categoria: { select: { id: true, nombre: true } },
-            _count: { select: { intentos: true } },
+            _count: { select: { intentos: true, asignaciones: true } },
+            asignaciones: {
+                include: { grupo: { select: { id: true, nombre: true } } },
+            },
         },
     });
 };
