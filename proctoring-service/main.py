@@ -39,9 +39,28 @@ HEAD_YAW_DOWN = "headRollRight"
 NOSE_TIP = 1
 LEFT_EYE_OUTER = 33
 RIGHT_EYE_OUTER = 263
+LEFT_EYE_INNER = 133
+RIGHT_EYE_INNER = 362
+LEFT_EYE_TOP = 159
+LEFT_EYE_BOTTOM = 145
+RIGHT_EYE_TOP = 386
+RIGHT_EYE_BOTTOM = 374
 
 # Frame-diff motion threshold (0-1)
 MOTION_UMBRAL = 0.35
+
+# Head-pose thresholds
+# yaw: giro lateral. >= 0.45 es una desviacion clara (menos sensible).
+YAW_DESVIADO = 0.45
+# pitch: nose tip mas de 1 ancho de ojo por debajo de la linea de ojos
+# (mirar hacia abajo, p.ej. un celular en la falda).
+PITCH_ABAJO = 1.0
+# Limite para considerar la cabeza "al frente": giro lateral pequeno.
+# La mirada NO se mide por el iris (demasiado ruidoso a 320x240 y el ojo se
+# mueve naturalmente al leer una pantalla). Solo se usa la pose de la cabeza:
+# si tu cabeza mira hacia adelante, pasas; si la giras/inclinas claramente, cuenta.
+MIRADA_CAMARA_YAW = 0.35
+MIRADA_CAMARA_PITCH = 0.8
 
 # Persisted state per intento: last frame for motion diff
 estados: Dict[str, Dict] = {}
@@ -89,20 +108,32 @@ def _metrics(landmarks, blendshape) -> Dict:
 
     parpadeo = (shape_value(BLINK_LEFT) + shape_value(BLINK_RIGHT)) / 2.0
     mandibula = shape_value(JAW_OPEN)
+    ojos_abiertos = parpadeo < 0.6
 
     nariz_x = pts[NOSE_TIP][0]
+    nariz_y = pts[NOSE_TIP][1]
     ojo_izq_x = pts[LEFT_EYE_OUTER][0]
     ojo_der_x = pts[RIGHT_EYE_OUTER][0]
-    centro_ojos = (ojo_izq_x + ojo_der_x) / 2.0
+    ojo_izq_y = pts[LEFT_EYE_OUTER][1]
+    ojo_der_y = pts[RIGHT_EYE_OUTER][1]
+    centro_ojos_x = (ojo_izq_x + ojo_der_x) / 2.0
+    centro_ojos_y = (ojo_izq_y + ojo_der_y) / 2.0
     ancho_ojos = max(ojo_der_x - ojo_izq_x, 1e-6)
-    yaw = (nariz_x - centro_ojos) / ancho_ojos
+    yaw = (nariz_x - centro_ojos_x) / ancho_ojos
+    # pitch: desplazamiento vertical del nose tip respecto de la linea de ojos,
+    # normalizado por el ancho de ojos (mirar abajo/arriba). Positivo = abajo.
+    pitch = (nariz_y - centro_ojos_y) / ancho_ojos
 
     return {
         "ojos_cerrados": bool(parpadeo > 0.6),
         "boca_abierta": bool(mandibula > 0.35),
-        "mirando_camara": bool(abs(yaw) < 0.35),
-        "cabeza_volteada": bool(abs(yaw) >= 0.65),
+        "mirando_camara": bool(
+            abs(yaw) < MIRADA_CAMARA_YAW and
+            pitch < MIRADA_CAMARA_PITCH
+        ),
+        "cabeza_volteada": bool(abs(yaw) >= YAW_DESVIADO or pitch >= PITCH_ABAJO),
         "yaw": round(float(yaw), 4),
+        "pitch": round(float(pitch), 4),
         "parpadeo": round(float(parpadeo), 4),
         "mandibula": round(float(mandibula), 4),
     }
@@ -151,6 +182,7 @@ def analizar(req: AnalisisRequest):
             "mirando_camara": False,
             "cabeza_volteada": False,
             "yaw": 0.0,
+            "pitch": 0.0,
             "parpadeo": 0.0,
             "mandibula": 0.0,
         }
