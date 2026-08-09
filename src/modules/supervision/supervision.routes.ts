@@ -7,6 +7,7 @@ import {
     listarEvidencias,
     descargarEvidencia,
     listarIntentosSupervision,
+    analizarFrame,
 } from './supervision.controller';
 import { subirEvidencia as multerSubirEvidencia } from '../../config/upload';
 import { verificarToken } from '../../middlewares/auth.middleware';
@@ -15,6 +16,7 @@ import { soloEstudiante, soloAdmin } from '../../middlewares/role.middleware';
 const router = Router();
 
 router.post('/estudiante/intentos/:intento_id/incidentes', verificarToken, soloEstudiante, reportarIncidente);
+router.post('/estudiante/intentos/:intento_id/analizar', verificarToken, soloEstudiante, analizarFrame);
 router.post('/estudiante/intentos/:intento_id/cancelar', verificarToken, soloEstudiante, cancelarExamen);
 router.post(
     '/estudiante/intentos/:intento_id/evidencias',

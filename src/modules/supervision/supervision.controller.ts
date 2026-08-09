@@ -10,6 +10,7 @@ import {
     listarEvidenciasService,
     obtenerEvidenciaService,
     listarIntentosSupervisionService,
+    analizarFrameService,
 } from './supervision.service';
 
 export const reportarIncidente = async (req: AuthRequest, res: Response) => {
@@ -99,6 +100,24 @@ export const listarIntentosSupervision = async (req: AuthRequest, res: Response)
         res.status(200).json(intentos);
     } catch (error: any) {
         res.status(500).json({ message: error.message });
+    }
+};
+
+export const analizarFrame = async (req: AuthRequest, res: Response) => {
+    try {
+        const estudiante_id = req.usuario!.id;
+        const { intento_id } = req.params as { intento_id: string };
+        const { frame } = req.body as { frame?: string };
+
+        if (!frame || typeof frame !== 'string') {
+            res.status(400).json({ message: 'El frame es requerido' });
+            return;
+        }
+
+        const resultado = await analizarFrameService(intento_id, estudiante_id, frame);
+        res.status(200).json(resultado);
+    } catch (error: any) {
+        res.status(503).json({ message: error.message });
     }
 };
 

@@ -4,6 +4,48 @@ import { IncidenteTipo, TipoEvidencia } from '@prisma/client';
 // Violaciones que imposibilitan continuar el examen: cancelan directo.
 const TIPOS_CANCELACION_DIRECTA: IncidenteTipo[] = ['SIN_PERMISOS', 'CIERRE_NAVEGADOR'];
 
+const PROCTORING_URL = process.env.PROCTORING_URL || 'http://127.0.0.1:8000/analizar';
+const PROCTORING_TIMEOUT_MS = 4000;
+
+export const analizarFrameService = async (
+    intento_id: string,
+    estudiante_id: string,
+    frame: string
+) => {
+    const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
+    if (!intento) throw new Error('Intento no encontrado');
+    if (intento.estudiante_id !== estudiante_id) throw new Error('No autorizado');
+    if (intento.estado !== 'EN_PROGRESO') throw new Error('Este examen ya fue finalizado');
+
+    const controlador = new AbortController();
+    const timeout = setTimeout(() => controlador.abort(), PROCTORING_TIMEOUT_MS);
+
+    try {
+        const respuesta = await fetch(PROCTORING_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ intento_id, frame }),
+            signal: controlador.signal,
+        });
+
+        if (!respuesta.ok) {
+            throw new Error(`El servicio de analisis respondio con estado ${respuesta.status}`);
+        }
+
+        return await respuesta.json();
+    } catch (error: any) {
+        if (error?.name === 'AbortError') {
+            throw new Error('El servicio de analisis tardo demasiado en responder');
+        }
+        if (error?.cause?.code === 'ECONNREFUSED') {
+            throw new Error('El servicio de analisis no esta disponible');
+        }
+        throw error;
+    } finally {
+        clearTimeout(timeout);
+    }
+};
+
 export const reportarIncidenteService = async (
     intento_id: string,
     estudiante_id: string,

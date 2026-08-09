@@ -4,3 +4,7 @@ node_modules/
 /generated/prisma
 uploads/
 .atl/
+# Servicio de analisis Python
+proctoring-service/models/
+proctoring-service/__pycache__/
+proctoring-service/.venv/
