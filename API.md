@@ -283,6 +283,40 @@ Body (opcional):
 
 ## 🛡️ Supervisión (incidentes y evidencias)
 
+### POST `/api/estudiante/intentos/:intento_id/analizar`
+Requiere `ESTUDIANTE`. Envía un frame de la cámara al **servicio de análisis de proctoring** (Python + MediaPipe) y devuelve las métricas de supervisión visual.
+
+Body:
+```json
+{
+  "frame": "<frame JPEG/PNG en base64>"
+}
+```
+
+El backend reenvía el frame al servicio Python (`PROCTORING_URL`, por defecto `http://127.0.0.1:8000/analizar`). El `frame` debe ser el mismo tamaño en cada llamada del mismo intento para que el cálculo de movimiento funcione.
+
+Respuesta `200`:
+```json
+{
+  "movimiento": 0.38,
+  "rostro_detectado": true,
+  "ojos_cerrados": false,
+  "boca_abierta": false,
+  "mirando_camara": true,
+  "cabeza_volteada": false,
+  "yaw": 0.09,
+  "parpadeo": 0.06,
+  "mandibula": 0.0
+}
+```
+
+- `movimiento`: proporción de píxeles distintos entre el frame actual y el anterior del mismo intento (0–1).
+- `ojos_cerrados`: ambos ojos cerrados según blendshapes (`eyeBlink*`).
+- `boca_abierta`: mandíbula abierta (`jawOpen > 0.35`).
+- `mirando_camara` / `cabeza_volteada`: posición de la nariz relativa a los ojos (`|yaw|`).
+
+Respuestas de error: `400` si falta el frame, `503` si el intento no existe/pertenece a otro estudiante o ya finalizó, o si el servicio Python no está disponible. El frontend degrada la supervisión visual (no reporta incidentes de cámara) cuando recibe `503`.
+
 ### POST `/api/estudiante/intentos/:intento_id/incidentes`
 Requiere `ESTUDIANTE`. Reporta un incidente de supervisión.
 
