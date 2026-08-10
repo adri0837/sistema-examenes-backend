@@ -8,6 +8,8 @@ import {
     listarPendientesRevision,
     calificarRespuestaAbierta,
     darSegundaOportunidad,
+    reprobarIntento,
+    permitirReintento,
 } from './intentos.controller';
 import { verificarToken } from '../../middlewares/auth.middleware';
 import { soloEstudiante, soloAdmin } from '../../middlewares/role.middleware';
@@ -25,5 +27,7 @@ router.get('/estudiante/calificaciones', verificarToken, soloEstudiante, listarC
 router.get('/revision/pendientes', verificarToken, soloAdmin, listarPendientesRevision);
 router.patch('/revision/respuestas/:respuesta_id', verificarToken, soloAdmin, calificarRespuestaAbierta);
 router.delete('/admin/estudiantes/:estudiante_id/examenes/:examen_id/oportunidad', verificarToken, soloAdmin, darSegundaOportunidad);
+router.patch('/admin/intentos/:intento_id/reprobar', verificarToken, soloAdmin, reprobarIntento);
+router.patch('/admin/intentos/:intento_id/permitir-reintento', verificarToken, soloAdmin, permitirReintento);
 
 export default router;

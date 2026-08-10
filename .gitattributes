@@ -1,0 +1,3 @@
+# Normalizar el repo a LF; los migrations SQL generados por Prisma se quedan en LF
+* text=auto
+prisma/migrations/**/*.sql text eol=lf

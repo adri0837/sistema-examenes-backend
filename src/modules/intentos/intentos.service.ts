@@ -1,4 +1,5 @@
 import prisma from '../../config/prisma';
+import { obtenerAsignacionesEstudianteService, obtenerAsignacionEstudianteExamenService } from '../grupos/grupos.service';
 
 // ── Helper: normalizar puntaje a escala 100 ─────────────────────────
 const normalizarA100 = (puntosObtenidos: number, puntosMaximos: number): number => {
@@ -6,7 +7,25 @@ const normalizarA100 = (puntosObtenidos: number, puntosMaximos: number): number 
     return Math.round((puntosObtenidos / puntosMaximos) * 100 * 100) / 100;
 };
 
+const estaEnVentana = (fecha_inicio: Date | null, fecha_fin: Date | null, ahora: Date): boolean =>
+    (!fecha_inicio || fecha_inicio <= ahora) && (!fecha_fin || fecha_fin >= ahora);
+
+const sinNulos = <T,>(arr: T[] | undefined | null): T[] => (arr || []).filter(v => v !== null && v !== undefined);
+
 export const listarExamenesDisponiblesService = async (estudiante_id: string) => {
+    const ahora = new Date();
+
+    const asignaciones = await obtenerAsignacionesEstudianteService(estudiante_id);
+    const asignacionesPorExamen = new Map<string, { fecha_inicio: Date | null; fecha_fin: Date | null }>();
+    for (const asignacion of asignaciones) {
+        if (!asignacionesPorExamen.has(asignacion.examen_id)) {
+            asignacionesPorExamen.set(asignacion.examen_id, {
+                fecha_inicio: asignacion.fecha_inicio,
+                fecha_fin: asignacion.fecha_fin,
+            });
+        }
+    }
+
     const examenes = await prisma.examen.findMany({
         where: { publicado: true },
         include: {
@@ -16,10 +35,23 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
         orderBy: { creado_en: 'desc' },
     });
 
+    const examenesAsignados = examenes.filter(examen => {
+        const asignacion = asignacionesPorExamen.get(examen.id);
+        return !!asignacion && estaEnVentana(asignacion.fecha_inicio, asignacion.fecha_fin, ahora);
+    });
+
     // Traer el intento más reciente por examen (puede haber más de uno si el admin dio otra oportunidad)
     const intentos = await prisma.intento.findMany({
         where: { estudiante_id },
-        select: { id: true, examen_id: true, estado: true, calificacion_final: true },
+        select: {
+            id: true,
+            examen_id: true,
+            estado: true,
+            calificacion_final: true,
+            llamadas_atencion: true,
+            reintento_permitido: true,
+            motivo_admin: true,
+        },
         orderBy: { iniciado_en: 'desc' },
     });
 
@@ -31,10 +63,17 @@ export const listarExamenesDisponiblesService = async (estudiante_id: string) =>
         }
     }
 
-    return examenes.map(examen => ({
-        ...examen,
-        intento: intentosMap.get(examen.id) || null,
-    }));
+    return examenesAsignados.map(examen => {
+        const asignacion = asignacionesPorExamen.get(examen.id)!;
+        return {
+            ...examen,
+            asignacion: {
+                fecha_inicio: asignacion.fecha_inicio,
+                fecha_fin: asignacion.fecha_fin,
+            },
+            intento: intentosMap.get(examen.id) || null,
+        };
+    });
 };
 
 export const iniciarExamenService = async (estudiante_id: string, examen_id: string) => {
@@ -42,18 +81,42 @@ export const iniciarExamenService = async (estudiante_id: string, examen_id: str
     if (!examen) throw new Error('Examen no encontrado');
     if (!examen.publicado) throw new Error('El examen no está disponible');
 
+    const asignacion = await obtenerAsignacionEstudianteExamenService(estudiante_id, examen_id);
+    if (!asignacion) throw new Error('Este examen no te fue asignado');
+
+    const ahora = new Date();
+    if (asignacion.fecha_inicio && ahora < asignacion.fecha_inicio) {
+        throw new Error('El examen aún no está disponible para rendir');
+    }
+    if (asignacion.fecha_fin && ahora > asignacion.fecha_fin) {
+        throw new Error('El plazo para rendir este examen ya venció');
+    }
+
     // Verificar si ya hay un intento activo o completado
     const intentoActivo = await prisma.intento.findFirst({
         where: {
             estudiante_id,
             examen_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'CANCELADO', 'REPROBADO'] },
         },
         orderBy: { iniciado_en: 'desc' },
     });
 
     if (intentoActivo?.estado === 'EN_PROGRESO') throw new Error('Ya tienes un intento en progreso para este examen');
-    if (intentoActivo) throw new Error('Ya realizaste este examen. Si fue cancelado, solicita una nueva oportunidad al administrador.');
+
+    if (intentoActivo) {
+        // Un intento cancelado o reprobado permite reintentar solo si el admin lo habilitó
+        if (
+            (intentoActivo.estado === 'CANCELADO' || intentoActivo.estado === 'REPROBADO') &&
+            intentoActivo.reintento_permitido
+        ) {
+            // Continuar con el nuevo intento
+        } else if (intentoActivo.estado === 'CANCELADO' || intentoActivo.estado === 'REPROBADO') {
+            throw new Error('Este examen fue cancelado o reprobado. Solicita una nueva oportunidad al administrador.');
+        } else {
+            throw new Error('Ya realizaste este examen.');
+        }
+    }
 
     const intento = await prisma.intento.create({
         data: { estudiante_id, examen_id, estado: 'EN_PROGRESO' },
@@ -111,7 +174,7 @@ export const entregarExamenService = async (
 
         if (pregunta.tipo === 'OPCION_MULTIPLE' || pregunta.tipo === 'VERDADERO_FALSO') {
             const correctas = pregunta.opciones.filter(o => o.es_correcta).map(o => o.id).sort();
-            const seleccionadas = (r.opciones_seleccionadas || []).sort();
+            const seleccionadas = sinNulos(r.opciones_seleccionadas).sort();
             es_correcta = JSON.stringify(correctas) === JSON.stringify(seleccionadas);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -119,7 +182,7 @@ export const entregarExamenService = async (
             }
         } else if (pregunta.tipo === 'RELACIONAR') {
             const correctos = pregunta.pares.map(p => `${p.lado_izquierdo}|${p.lado_derecho}`).sort();
-            const dados = (r.pares_relacionados || []).map((p: any) => `${p.izquierdo}|${p.derecho}`).sort();
+            const dados = sinNulos(r.pares_relacionados).map((p: any) => `${p.izquierdo}|${p.derecho}`).sort();
             es_correcta = JSON.stringify(correctos) === JSON.stringify(dados);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -127,7 +190,7 @@ export const entregarExamenService = async (
             }
         } else if (pregunta.tipo === 'COMPLETAR') {
             const correctos = pregunta.espacios.map(e => e.respuesta_correcta.toLowerCase().trim());
-            const dados = (r.espacios_respuestas || []).map((e: string) => (e || '').toLowerCase().trim());
+            const dados = sinNulos(r.espacios_respuestas).map((e: string) => (e || '').toLowerCase().trim());
             es_correcta = JSON.stringify(correctos) === JSON.stringify(dados);
             if (es_correcta) {
                 puntaje_obtenido = Number(pregunta.puntaje);
@@ -142,8 +205,8 @@ export const entregarExamenService = async (
             intento_id,
             pregunta_id: r.pregunta_id,
             texto_respuesta: r.texto_respuesta || null,
-            opciones_seleccionadas: r.opciones_seleccionadas || [],
-            pares_relacionados: r.pares_relacionados || null,
+            opciones_seleccionadas: sinNulos(r.opciones_seleccionadas),
+            pares_relacionados: sinNulos(r.pares_relacionados),
             es_correcta,
             puntaje_obtenido,
             revisado_por_admin: false,
@@ -173,7 +236,7 @@ export const listarCalificacionesEstudianteService = async (estudiante_id: strin
     return prisma.intento.findMany({
         where: {
             estudiante_id,
-            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO'] },
+            estado: { in: ['EN_PROGRESO', 'ENTREGADO', 'CALIFICADO', 'REPROBADO'] },
         },
         include: {
             examen: {
@@ -306,4 +369,40 @@ export const darSegundaOportunidadService = async (estudiante_id: string, examen
     await prisma.intento.delete({ where: { id: intento.id } });
 
     return { message: 'Segunda oportunidad otorgada correctamente' };
+};
+
+// ── Reprobación y segunda oportunidad por revisión del admin ─────────
+export const reprobarIntentoService = async (intento_id: string, motivo?: string) => {
+    const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
+    if (!intento) throw new Error('Intento no encontrado');
+
+    // Descartar las respuestas para que no cuente como calificado
+    await prisma.respuestaEstudiante.deleteMany({ where: { intento_id } });
+
+    return prisma.intento.update({
+        where: { id: intento_id },
+        data: {
+            estado: 'REPROBADO',
+            calificacion_final: null,
+            calificacion_auto: null,
+            calificacion_manual: null,
+            motivo_admin: motivo || null,
+        },
+    });
+};
+
+export const permitirReintentoService = async (intento_id: string, motivo?: string) => {
+    const intento = await prisma.intento.findUnique({ where: { id: intento_id } });
+    if (!intento) throw new Error('Intento no encontrado');
+    if (intento.estado !== 'REPROBADO' && intento.estado !== 'CANCELADO') {
+        throw new Error('Solo se puede dar una segunda oportunidad a un intento reprobado o cancelado');
+    }
+
+    return prisma.intento.update({
+        where: { id: intento_id },
+        data: {
+            reintento_permitido: true,
+            motivo_admin: motivo || intento.motivo_admin,
+        },
+    });
 };

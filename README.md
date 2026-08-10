@@ -2,6 +2,33 @@
 
 Este es el repositorio del **Backend** para la plataforma de evaluación académica. Está construido utilizando **Node.js** + **Express** + **TypeScript** + **Prisma ORM**.
 
+## ✨ Funcionalidades
+
+- **Autenticación** con JWT (roles `ADMIN` y `ESTUDIANTE`).
+- **Gestión de usuarios, categorías, exámenes y preguntas**: múltiple opción, verdadero/falso, abierta, relacionar y completar.
+- **Grupos**: creación de grupos, alta de estudiantes y asignación de exámenes con ventana de rendición (`fecha_inicio` / `fecha_fin`).
+- **Flujo del estudiante**: listar exámenes disponibles según su grupo, iniciar, entregar y ver calificaciones.
+- **Corrección automática**: preguntas de opción múltiple, verdadero/falso, relacionar y completar se corrigen en el servidor. Las preguntas abiertas quedan para revisión del admin.
+- **Supervisión por cámara/micrófono**:
+  - El estudiante reporta incidentes (`SIN_CAMARA`, `SIN_MICRO`, `CAMBIO_VENTANA`, `RUIDO_SOSPECHOSO`, etc.).
+  - **2 llamadas de atención**: la primera es advertencia; la segunda cancela el examen automáticamente. Los tipos `SIN_PERMISOS` y `CIERRE_NAVEGADOR` cancelan directo.
+  - **Análisis visual en Python** (`proctoring-service/`): FastAPI + MediaPipe analiza cada frame de la cámara y detecta movimiento, presencia de rostro, ojos cerrados, boca abierta y si el estudiante mira a la cámara o volteó la cabeza. El frontend consulta el análisis vía `POST /api/estudiante/intentos/:intento_id/analizar`, que actúa como proxy hacia el servicio Python.
+  - **Evidencias** (capturas de pantalla, grabaciones de audio/video) subidas con `multipart/form-data` y servidas por URL pública o por endpoint protegido.
+  - **Panel de supervisión para el admin**: intentos con incidentes y evidencias, reprobación y habilitación de reintentos.
+- **Revisión manual**: el admin califica las respuestas abiertas y puede **reprobar** o **permitir reintento** de un intento cancelado/reprobado.
+- **Reportes** por examen y por estudiante.
+
+> 📖 Documentación completa de los endpoints en [`API.md`](./API.md).
+
+##  Usuarios de prueba (seed)
+
+El seed (`npx prisma db seed`) crea dos usuarios por defecto:
+
+| Rol | Email | Contraseña |
+| --- | --- | --- |
+| ADMIN | `admin@examenes.com` | `admin123` |
+| ESTUDIANTE | `estudiante@examenes.com` | `estudiante123` |
+
 ##  Prerrequisitos
 
 Antes de comenzar, asegúrate de tener instalado lo siguiente en tu máquina:
@@ -33,9 +60,23 @@ Crea un archivo llamado .env en la raíz del proyecto (si es que no se creó aut
 DATABASE_URL="postgresql://postgres:TU_PASSWORD@localhost:5432/sistema_examenes"
 JWT_SECRET="cualquier_cadena_secreta_larga"
 PORT=3000
+# Opcional: apunta al servicio de análisis de proctoring (default http://127.0.0.1:8000/analizar)
+PROCTORING_URL="http://127.0.0.1:8000/analizar"
 ```
 
 Nota: Cambia **"TU_PASSWORD_LOCAL"** por la contraseña que realmente utilizas y **"nombre_de_tu_base_de_datos_local"** por el nombre exacto de la base de datos donde deseas trabajar. ESTE ARCHIVO TAMBIÉN ESTÁ EN EL .gitignore, POR LO QUE TUS CONTRASEÑAS LOCALES (el archivo .env) NUNCA SE SUBIRÁN A GITHUB NI AFECTARÁN A LOS DEMÁS.
+
+### 4b. Servicio de análisis de proctoring (opcional pero recomendado)
+
+Para habilitar el análisis visual de la cámara (movimiento, rostro, ojos y boca), levanta el servicio Python en `proctoring-service/`:
+
+```bash
+cd proctoring-service
+pip install -r requirements.txt
+python main.py
+```
+
+El servicio queda escuchando en `http://127.0.0.1:8000` (por defecto). Ver [`proctoring-service/README.md`](./proctoring-service/README.md).
 
 ### 4. Sincronizar la Base de Datos (Migración)
 Para asegurarte de tener las mismas tablas que el resto del equipo en tu PostgreSQL local, ejecuta el comando de mapeo de Prisma:
