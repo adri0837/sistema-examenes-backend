@@ -46,7 +46,12 @@ export const listarIncidentes = async (req: AuthRequest, res: Response) => {
     try {
         const { intento_id } = req.params as { intento_id: string };
         const incidentes = await listarIncidentesService(intento_id);
-        res.status(200).json(incidentes);
+        res.status(200).json(
+            incidentes.map(inc => ({
+                ...inc,
+                evidencias: inc.evidencias.map(e => ({ ...e, url: `/uploads/evidencias/${e.archivo}` })),
+            }))
+        );
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }
